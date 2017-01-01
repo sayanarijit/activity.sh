@@ -1,4 +1,4 @@
-# steps.sh
+# activity.sh
 
 This is a powerfull (customizable) script for system admins to be prepared for upcoming bulk server activities.
 
