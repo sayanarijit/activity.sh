@@ -8,7 +8,7 @@ Features:
 * Runs upto 100 simultaneous background process.
 * Smart enough to run functions step by step (e.g. before performing ssh check, it performs ping check first).
 * Anyone can modify the global variables, add or delete functions (it's customizable).
-* Best feature is, it can create a fully featured website for the reports it has generated to make it easies to browse.
+* Best feature is, it can create a fully featured website for the reports it has generated to make it easier to browse.
 
 Usage:
 * [Download zip] (https://github.com/sayanarijit/activity.sh/archive/master.zip)
