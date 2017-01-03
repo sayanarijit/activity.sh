@@ -39,6 +39,10 @@ function read_file($path)
 <body>
 
 <?php
+$i=0;
+$j=0;
+$fileID = array();
+$dirID = array();
 # ---------------------------- display page ------------------------------------
 # Heading
 echo "<h1>Activity report for - ".$activity_name."</h1>";
@@ -49,7 +53,9 @@ foreach ($basic_reports as $key => $value) {
   echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
   echo "<table>";
   foreach(glob($value."/*") as $k => $v){
-    echo "<tr><td><a href='?file=".$v."'>".ucfirst(str_replace('_',' ',basename($v)))."</a></td><td>: ".count(read_lines($v))."</td></tr>";
+    $fileID[$i] = $v;
+    echo "<tr><td><a href='?file=".$i."'>".ucfirst(str_replace('_',' ',basename($v)))."</a></td><td>: ".count(read_lines($v))."</td></tr>";
+    $i++;
   }
   echo "</table>";
 }
@@ -57,8 +63,11 @@ foreach ($basic_reports as $key => $value) {
 foreach ($advance_reports as $key => $value) {
   echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
   foreach(glob($value."/*") as $k => $v){
-    echo "<a href='?dir=".$v."/output'>".read_file($v."/name")." : output</a>";
-    echo "<a href='?dir=".$v."/error'>".read_file($v."/name")." : error</a>";
+    $dirID[$j.'-output'] = $v."/output";
+    $dirID[$j.'-error'] = $v."/error";
+    echo "<a href='?dir=".$j."-output'>".read_file($v."/name")." : output</a>";
+    echo "<a href='?dir=".$j."-error'>".read_file($v."/name")." : error</a>";
+    $j++;
   }
   echo "</table>";
 }
@@ -71,19 +80,21 @@ echo "</div>";
 
 # Middle panel
 echo "<div style='width:18%; float:left'>";
-if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($_GET['dir']))){
-  echo "<h3>".read_file($_GET['dir']."/../name")." : ".str_replace('_',' ',basename(dirname($_GET['dir']."/.")))."</h3>";
+if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']]))){
+  echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." : ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
   echo "<a href='?dir=".$_GET['dir']."&file=*'>Show all</a><hr/>";
-  $files = glob($_GET['dir']."/*");
+  $files = glob($dirID[$_GET['dir']]."/*");
   foreach ($files as $f){
-    echo "<a href='?dir=".$_GET['dir']."&file=".$f."'>".basename($f)."</a>";
+    $fileID[$i] = $f;
+    echo "<a href='?dir=".$_GET['dir']."&file=".$i."'>".basename($f)."</a>";
+    $i++;
   }
 }
 echo "</div>";
 
 # Right panel
 echo "<div style='width:48%; float:left'>";
-if (isset($_GET['file'])&&(!empty($_GET['file']))){
+if (isset($_GET['file'])){
   if (isset($_GET['dir'])&&(is_dir($_GET['dir']))&&($_GET['file'] == "*")){
     $files = glob($_GET['dir']."/*");
     foreach ($files as $f){
@@ -95,10 +106,10 @@ if (isset($_GET['file'])&&(!empty($_GET['file']))){
       }
       echo "</div>";
     }
-  }elseif(is_file($_GET['file'])){
-    echo "<h3>".str_replace('_',' ',basename(dirname($_GET['file']."/.")))."</h3>";
+  }elseif(is_file($fileID[$_GET['file']])){
+    echo "<h3>".str_replace('_',' ',basename($fileID[$_GET['file']]))."</h3>";
     echo "<div style='background-color: #E1E1E1'>";
-    $lines = read_lines($_GET['file']);
+    $lines = read_lines($fileID[$_GET['file']]);
     foreach ($lines as $l){
       echo $l."<br/>";
     }
