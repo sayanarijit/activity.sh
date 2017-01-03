@@ -9,6 +9,7 @@ MENU[b]="ssh-check"
 MENU[c]="console-check"
 MENU[d]="config-check"
 MENU[e]="execute-command"
+MENU[f]="login-check"
 MENU[w]="publish-unpublish"
 MENU[x]="delete-activity"
 MENU[y]="rename-activity"
@@ -22,7 +23,7 @@ if [ -d "$REPORT_DIR" ] && [ "$(ls $REPORT_DIR)" ]; then
   echo "───────────────────"
   ls -t -1 $REPORT_DIR
   echo
-  read -p "Enter activity NAME to continue or leave blank to start fresh : " ACTIVITY_NAME
+  read -p "Enter activity name to continue or leave blank to start fresh : " ACTIVITY_NAME
   echo
   [ "$ACTIVITY_NAME" ] && [ ! -d "$REPORT_DIR/$ACTIVITY_NAME" ] && echo "Not found !" && exit 1
   [ ! "$ACTIVITY_NAME" ] && ACTIVITY_NAME=$(date|tr ' ' '_'|tr ':' '-')
@@ -36,6 +37,7 @@ BASIC_REPORT_DIR="$ACTIVITY_DIR/basic_report"                                   
 PING_CHECK_DIR="$BASIC_REPORT_DIR/ping_check"
 SSH_CHECK_DIR="$BASIC_REPORT_DIR/ssh_check"
 CONSOLE_CHECK_DIR="$BASIC_REPORT_DIR/console_check"
+LOGIN_CHECK_DIR="$BASIC_REPORT_DIR/login_check"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
@@ -59,6 +61,7 @@ while :; do
 done
 
 # Other variables
+MAX_BACKGROUND_PROCESS=100;                                                     # Maximum no. of background process to run simultaneously
 HR=$(for ((i=0;i<$(tput cols);i++));do echo -en "─";done;echo)
 
 # Custom functions (can be edited)----------------------------------------------
@@ -117,7 +120,7 @@ generate-ssh-report ()
 
       if [ "$hostname" ];then
         echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
-        echo $1 >> "$SSH_CHECK_DIR/ssh_no_root_self_login"
+        echo $1 >> "$SSH_CHECK_DIR/ssh_root_login_not_possible"
         if (( $end-$start <= 5 )); then
           echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
         else
@@ -137,19 +140,19 @@ generate-execute-command-report ()
   file="$SSH_CHECK_DIR/ssh_with_root_login"
   [ -f "$file" ] && hosts=( $(cat "$file") )
   if in-array $1 ${hosts[*]}; then
-    ssh_string="sudo ssh"
+    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no"
   else
     hosts=()
-    file="$SSH_CHECK_DIR/ssh_no_root_self_login"
+    file="$SSH_CHECK_DIR/ssh_root_login_not_possible"
     [ -f "$file" ] && hosts=( $(cat "$file") )
     if in-array $1 ${hosts[*]}; then
-      ssh_string="sshpass -p $PASSWORD ssh"
+      ssh_string="sshpass -p $PASSWORD ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no"
     else
       echo "SSH: $1 : Not reachable" >> $3/error/$1
       return 1
     fi
   fi
-  temp=$(timeout -s9 $SSH_TIMEOUT $ssh_string -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "$2" > $3/output/$1 2> $3/error/$1) 2>/dev/null
+  temp=$(timeout -s9 $SSH_TIMEOUT $ssh_string $1 "$2" > $3/output/$1 2> $3/error/$1) 2>/dev/null
 }
 
 generate-console-report ()
@@ -164,11 +167,30 @@ generate-console-report ()
   [ ! "$fqdn" ] && echo $1 >> $CONSOLE_CHECK_DIR/console_not_available
 }
 
+generate-login-report ()
+{
+  hosts=()
+  file="$SSH_CHECK_DIR/ssh_with_root_login"
+  [ -f "$file" ] && hosts=( $(cat "$file") )
+  if in-array $1 ${hosts[*]}; then
+    user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
+    [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
+    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "su sayan -c 'cd && id'" 2>/dev/null)
+    if [ "$id" ]; then
+      echo $1 >> "$LOGIN_CHECK_DIR/user_login_successful"
+    else
+      echo $1 >> "$LOGIN_CHECK_DIR/user_login_unsuccessful"
+    fi
+  else
+    echo $1 >> "$LOGIN_CHECK_DIR/ssh_root_login_not_possible"
+  fi
+}
+
 # Looper functions (reads input and calls single action functions in loop)
 ping-check ()
 {
   [ -d "$PING_CHECK_DIR" ] && rm -rf "$PING_CHECK_DIR"
-  mkdir -p "$PING_CHECK_DIR" || exit -1
+  mkdir -p "$PING_CHECK_DIR" || exit 1
 
   echo "Paste targets below and press 'CTRL+D'"
   echo "──────────────────────────────────────"
@@ -183,7 +205,7 @@ ping-check ()
     i=$(($i+1))
     echo -en "  Generating ping check report... ($i/$c)                 \r"
     generate-ping-report $t &
-    [ $(($i%100)) == 0 ] && wait
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
   echo "                                                                   "
@@ -191,9 +213,9 @@ ping-check ()
 
 ssh-check ()
 {
-  [ ! -f "$PING_CHECK_DIR/available_hosts" ] && ping-check
+  [ -f "$PING_CHECK_DIR/available_hosts" ] || ping-check
   [ -d "$SSH_CHECK_DIR" ] && rm -rf "$SSH_CHECK_DIR"
-  mkdir -p "$SSH_CHECK_DIR" || exit -1
+  mkdir -p "$SSH_CHECK_DIR" || exit 1
 
   targets=( $(cat "$PING_CHECK_DIR/available_hosts") )
   echo
@@ -206,7 +228,7 @@ ssh-check ()
     i=$(($i+1))
     echo -en "  Generating ssh check report... ($i/$c)                 \r"
     generate-ssh-report $t &
-    [ $(($i%100)) == 0 ] && wait
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
   echo "                                                                   "
@@ -214,13 +236,13 @@ ssh-check ()
 
 execute-command ()
 {
-  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || [ -f "$SSH_CHECK_DIR/ssh_no_root_self_login" ] || ssh-check
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
 
   dir="$EXECUTE_COMMAND_DIR/$(date +%s)"
   mkdir -p "$dir/output" || exit 1
   mkdir -p "$dir/error" || exit 1
 
-  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login" "$SSH_CHECK_DIR/ssh_no_root_self_login" 2>/dev/null) )
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
@@ -235,7 +257,7 @@ execute-command ()
     i=$(($i+1))
     echo -en "  Generating command output report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
-    [ $(($i%100)) == 0 ] && wait
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
   echo "                                                                   "
@@ -247,9 +269,9 @@ execute-command ()
 
 console-check ()
 {
-  [ ! -f "$PING_CHECK_DIR/all_hosts" ] && ping-check
+  [ -f "$PING_CHECK_DIR/all_hosts" ] || ping-check
   [ -d "$CONSOLE_CHECK_DIR" ] && rm -rf "$CONSOLE_CHECK_DIR"
-  mkdir -p "$CONSOLE_CHECK_DIR" || exit -1
+  mkdir -p "$CONSOLE_CHECK_DIR" || exit 1
 
   targets=( $(cat "$PING_CHECK_DIR/all_hosts") )
   echo
@@ -261,7 +283,7 @@ console-check ()
     i=$(($i+1))
     echo -en "  Generating console check report... ($i/$c)                 \r"
     generate-console-report $t &
-    [ $(($i%100)) == 0 ] && wait
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
   echo "                                                                   "
@@ -283,13 +305,13 @@ config-check ()
     command_to_run=$command_to_run"echo $f;echo =============================;cat $f;echo;echo;"
   done
 
-  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || [ -f "$SSH_CHECK_DIR/ssh_no_root_self_login" ] || ssh-check
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
 
   dir="$CONFIG_CHECK_DIR/$(date +%s)"
   mkdir -p "$dir/output" || exit 1
   mkdir -p "$dir/error" || exit 1
 
-  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login" "$SSH_CHECK_DIR/ssh_no_root_self_login" 2>/dev/null) )
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts" 2>/dev/null) )
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
@@ -302,7 +324,7 @@ config-check ()
     i=$(($i+1))
     echo -en "  Generating configuration check report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
-    [ $(($i%100)) == 0 ] && wait
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
   echo "                                                                   "
@@ -312,13 +334,36 @@ config-check ()
   read -sp "[press ENTER to continue]"
 }
 
+login-check ()
+{
+  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || ssh-check
+  [ -d "$LOGIN_CHECK_DIR" ] && rm -rf "$LOGIN_CHECK_DIR"
+  mkdir -p "$LOGIN_CHECK_DIR" || exit 1
+
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login") )
+  echo
+  [ ! "${targets}" ] && echo "No target found..." && exit 1
+
+  sudo ssh 2>/dev/null
+  c=${#targets[*]}
+  i=0
+  for t in ${targets[*]}; do
+    i=$(($i+1))
+    echo -en "  Generating login check report... ($i/$c)                 \r"
+    generate-login-report $t &
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+  done
+  wait
+  echo "                                                                   "
+}
+
 # Core functions (do not edit) -------------------------------------------------
 
 in-array ()
 {
   x=$1 && shift
   for e; do
-    [ $x == $e ] && return 0
+    [[ $x == $e ]] && return 0
   done
   return 1
 }
