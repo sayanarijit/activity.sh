@@ -175,7 +175,7 @@ generate-login-report ()
   if in-array $1 ${hosts[*]}; then
     user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
     [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
-    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "su sayan -c 'cd && id'" 2>/dev/null)
+    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "su $user -s /bin/sh -c 'cd && id'" 2>/dev/null)
     if [ "$id" ]; then
       echo $1 >> "$LOGIN_CHECK_DIR/user_login_successful"
     else
@@ -293,7 +293,7 @@ config-check ()
 {
   files_to_check=( "/etc/fstab" "/etc/passwd" "/etc/shadow" "/etc/master.passwd" "/etc/mtab" \
                   "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" "/etc/network/interfaces" \
-                  "/etc/puppet.conf" "/var/spool/cron/crontabs/root" "/etc/juniper/juniper.facts" "/etc/sudoers" )
+                  "/etc/puppet.conf" "/var/spool/cron/crontabs/root" "/etc/sudoers" )
 
   command_to_run="echo OS Arch;echo =============================;uname -a;echo;echo;"
   command_to_run=$command_to_run"echo Linux distro;echo =============================;lsb_release -a;echo;echo;"
