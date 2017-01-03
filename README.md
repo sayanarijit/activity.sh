@@ -5,7 +5,7 @@ This is a powerfull (customizable) script for system admins to be prepared for u
 Features:
 * Basic functions: ping check, ssh check, console check, configuration check, execute command, login check, report generation.
 * Interactive and very easy to use.
-* Runs upto 100 simultaneous background process.
+* Runs simultaneous background process.
 * Smart enough to run functions step by step (e.g. before performing ssh check, it performs ping check first).
 * Anyone can modify the global variables, add or delete functions (it's customizable).
 * Best feature is, it can create a fully featured website for the reports it has generated to make it easier to browse.
