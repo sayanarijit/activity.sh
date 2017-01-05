@@ -2,7 +2,6 @@
 $activity_name = basename(dirname(__FILE__));
 $basic_reports = glob("basic_report/*");
 $advance_reports = glob("advance_report/*");
-
 function read_lines($path)
 {
   $file = fopen($path, "r");
@@ -14,7 +13,6 @@ function read_lines($path)
   unset($members[(count($members)-1)]);
   return $members;
 }
-
 function read_file($path)
 {
   $myfile = fopen($path, "r");
@@ -47,7 +45,6 @@ $dirID = array();
 # Heading
 echo "<h1>Activity report for - ".$activity_name."</h1>";
 echo "<div style='width:28%; float:left'>";
-
 # Left panel
 foreach ($basic_reports as $key => $value) {
   echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
@@ -59,7 +56,6 @@ foreach ($basic_reports as $key => $value) {
   }
   echo "</table>";
 }
-
 foreach ($advance_reports as $key => $value) {
   echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
   foreach(glob($value."/*") as $k => $v){
@@ -77,7 +73,6 @@ foreach ($files as $f){
   echo "<a href='".$f."'>".basename($f)."</a>";
 }
 echo "</div>";
-
 # Middle panel
 echo "<div style='width:18%; float:left'>";
 if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']]))){
@@ -91,12 +86,11 @@ if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']])))
   }
 }
 echo "</div>";
-
 # Right panel
 echo "<div style='width:48%; float:left'>";
 if (isset($_GET['file'])){
-  if (isset($_GET['dir'])&&(is_dir($_GET['dir']))&&($_GET['file'] == "*")){
-    $files = glob($_GET['dir']."/*");
+  if (isset($_GET['dir'])&&(is_dir($dirID[$_GET['dir']]))&&($_GET['file'] == "*")){
+    $files = glob($dirID[$_GET['dir']]."/*");
     foreach ($files as $f){
       echo "<h3>".str_replace('_',' ',basename(dirname($f."/.")))."</h3>";
       echo "<div style='background-color: #E1E1E1'>";
