@@ -11,8 +11,8 @@ MENU[d]="config-check"
 MENU[e]="execute-command"
 MENU[f]="login-check"
 MENU[w]="publish-unpublish"
-MENU[x]="delete-activity"
-MENU[y]="rename-activity"
+MENU[x]="delete-this-activity"
+MENU[y]="rename-this-activity"
 
 # Initialize global variables --------------------------------------------------
 REPORT_DIR="/tmp/activity-reports"
@@ -291,8 +291,8 @@ console-check ()
 
 config-check ()
 {
-  files_to_check=( "/etc/fstab" "/etc/passwd" "/etc/shadow" "/etc/master.passwd" "/etc/mtab" \
-                  "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" "/etc/network/interfaces" \
+  files_to_check=( "/etc/fstab" "/etc/mtab" "/etc/network/interfaces" \
+                  "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" \
                   "/etc/puppet.conf" "/var/spool/cron/crontabs/root" "/etc/sudoers" )
 
   command_to_run="echo OS Arch;echo =============================;uname -a;echo;echo;"
@@ -394,7 +394,7 @@ publish-unpublish ()
   fi
 }
 
-delete-activity ()
+delete-this-activity ()
 {
   echo
   echo "You are going to delete $ACTIVITY_DIR and unpublish website if exists."
@@ -408,7 +408,7 @@ delete-activity ()
   exit 0
 }
 
-rename-activity ()
+rename-this-activity ()
 {
   if [ ! -d "$ACTIVITY_DIR" ];then
     echo; echo "Activity hasn't started yet !"; echo
