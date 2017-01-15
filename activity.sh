@@ -10,6 +10,7 @@ MENU[c]="console-check"
 MENU[d]="config-check"
 MENU[e]="execute-command"
 MENU[f]="login-check"
+MENU[g]="health-check"
 MENU[w]="publish-unpublish"
 MENU[x]="delete-this-activity"
 MENU[y]="rename-this-activity"
@@ -38,6 +39,7 @@ PING_CHECK_DIR="$BASIC_REPORT_DIR/ping_check"
 SSH_CHECK_DIR="$BASIC_REPORT_DIR/ssh_check"
 CONSOLE_CHECK_DIR="$BASIC_REPORT_DIR/console_check"
 LOGIN_CHECK_DIR="$BASIC_REPORT_DIR/login_check"
+HEALTH_CHECK_DIR="$BASIC_REPORT_DIR/health_check"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
@@ -56,7 +58,7 @@ REFERENCE_SERVER="localhost"                                                    
 # unix PASSWORD
 while :; do
   read -sp "Enter unix password : " PASSWORD && echo && \
-   sshpass -p $PASSWORD ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $REFERENCE_SERVER id &>/dev/null && \
+   sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $REFERENCE_SERVER id &>/dev/null && \
     break
 done
 
@@ -115,7 +117,7 @@ generate-ssh-report ()
     else
       # Try 3 : Login with unix account
       start=$(date +%s)
-      hostname=$(timeout -s9 $SSH_TIMEOUT sshpass -p $PASSWORD ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+      hostname=$(timeout -s9 $SSH_TIMEOUT sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
       end=$(date +%s)
 
       if [ "$hostname" ];then
@@ -140,19 +142,19 @@ generate-execute-command-report ()
   file="$SSH_CHECK_DIR/ssh_with_root_login"
   [ -f "$file" ] && hosts=( $(cat "$file") )
   if in-array $1 ${hosts[*]}; then
-    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no"
+    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   else
     hosts=()
     file="$SSH_CHECK_DIR/ssh_root_login_not_possible"
     [ -f "$file" ] && hosts=( $(cat "$file") )
     if in-array $1 ${hosts[*]}; then
-      ssh_string="sshpass -p $PASSWORD ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no"
+      ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
     else
       echo "SSH: $1 : Not reachable" >> $3/error/$1
       return 1
     fi
   fi
-  temp=$(timeout -s9 $SSH_TIMEOUT $ssh_string $1 "$2" > $3/output/$1 2> $3/error/$1) 2>/dev/null
+  eval $ssh_string "$2" > $3/output/$1 2> $3/error/$1
 }
 
 generate-console-report ()
@@ -173,16 +175,53 @@ generate-login-report ()
   file="$SSH_CHECK_DIR/ssh_with_root_login"
   [ -f "$file" ] && hosts=( $(cat "$file") )
   if in-array $1 ${hosts[*]}; then
-    user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
+
+    user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 \
+     "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
     [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
-    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "su $user -s /bin/sh -c 'cd && id'" 2>/dev/null)
-    if [ "$id" ]; then
+
+    tmp=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o \
+     StrictHostKeyChecking=no $1 "su $user -c cd" 2>/dev/null) 2>/dev/null
+
+    if [ "$?" == 0 ]; then
       echo $1 >> "$LOGIN_CHECK_DIR/user_login_successful"
     else
       echo $1 >> "$LOGIN_CHECK_DIR/user_login_unsuccessful"
     fi
   else
     echo $1 >> "$LOGIN_CHECK_DIR/ssh_root_login_not_possible"
+  fi
+}
+
+generate-health-report ()
+{
+  hosts=()
+  file="$SSH_CHECK_DIR/ssh_with_root_login"
+  [ -f "$file" ] && hosts=( $(cat "$file") )
+  if in-array $1 ${hosts[*]}; then
+    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
+  else
+    hosts=()
+    file="$SSH_CHECK_DIR/ssh_root_login_not_possible"
+    [ -f "$file" ] && hosts=( $(cat "$file") )
+    if in-array $1 ${hosts[*]}; then
+      ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
+    else
+      echo $1 >> $HEALTH_CHECK_DIR/ssh_not_reachable
+      return 1
+    fi
+  fi
+  cpu_usage=$($ssh_string "uptime|awk '{print \$NF*100}'" 2>/dev/null)
+  ram_usage=$($ssh_string "free|grep -i mem|awk '{print \$3*100/\$2}'|xargs printf '%.*f\n' 0" 2>/dev/null)
+  active_sessions=$($ssh_string "who|wc -l" 2>/dev/null)
+
+  if [ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$logged_in_users" -ge 20 ]; then
+    [ "$cpu_usage" -ge 70 ] && echo $1 >> $HEALTH_CHECK_DIR/high_cpu_usage
+    [ "$ram_usage" -ge 70 ] && echo $1 >> $HEALTH_CHECK_DIR/high_ram_usage
+    [ "$active_sessions" -ge 20 ] && echo $1 >> $HEALTH_CHECK_DIR/high_active_sessions
+    echo $1 >> $HEALTH_CHECK_DIR/bad_health
+  else
+    echo $1 >> $HEALTH_CHECK_DIR/good_health
   fi
 }
 
@@ -351,6 +390,31 @@ login-check ()
     i=$(($i+1))
     echo -en "  Generating login check report... ($i/$c)                 \r"
     generate-login-report $t &
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+  done
+  wait
+  echo "                                                                   "
+}
+
+health-check ()
+{
+  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || ssh-check
+  [ -d "$HEALTH_CHECK_DIR" ] && rm -rf "$HEALTH_CHECK_DIR"
+  mkdir -p "$HEALTH_CHECK_DIR" || exit 1
+
+  login-check
+
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login") )
+  echo
+  [ ! "${targets}" ] && echo "No target found..." && exit 1
+
+  sudo ssh 2>/dev/null
+  c=${#targets[*]}
+  i=0
+  for t in ${targets[*]}; do
+    i=$(($i+1))
+    echo -en "  Generating health check report... ($i/$c)                 \r"
+    generate-health-report $t &
     [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
