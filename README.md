@@ -11,6 +11,12 @@ Features:
 * Anyone can modify the global variables, add or delete functions (it's customizable).
 * Best feature is, it can create a fully featured website for the reports it has generated to make it easier to browse.
 
+Dependencies:
+* Runs on bash.
+* Needs sudo access to ssh (optional: scp to publish reports on website).
+* Required tools/coomands need to be installed: sshpass, xargs, find, ssh and scp.
+* Optional web server with apache and php installed to publish reports on website.
+
 Usage:
 * [Download zip] (https://github.com/sayanarijit/activity.sh/archive/master.zip)
 ```
