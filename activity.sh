@@ -11,6 +11,7 @@ MENU[d]="config-check"
 MENU[e]="execute-command"
 MENU[f]="login-check"
 MENU[g]="health-check"
+MENU[h]="mount-check"
 MENU[w]="publish-unpublish"
 MENU[x]="delete-this-activity"
 MENU[y]="rename-this-activity"
@@ -40,6 +41,7 @@ SSH_CHECK_DIR="$BASIC_REPORT_DIR/ssh_check"
 CONSOLE_CHECK_DIR="$BASIC_REPORT_DIR/console_check"
 LOGIN_CHECK_DIR="$BASIC_REPORT_DIR/login_check"
 HEALTH_CHECK_DIR="$BASIC_REPORT_DIR/health_check"
+MOUNT_CHECK_DIR="$BASIC_REPORT_DIR/mount_check"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
@@ -144,15 +146,7 @@ generate-execute-command-report ()
   if in-array $1 ${hosts[*]}; then
     ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   else
-    hosts=()
-    file="$SSH_CHECK_DIR/ssh_root_login_not_possible"
-    [ -f "$file" ] && hosts=( $(cat "$file") )
-    if in-array $1 ${hosts[*]}; then
-      ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
-    else
-      echo "SSH: $1 : Not reachable" >> $3/error/$1
-      return 1
-    fi
+    ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
   eval $ssh_string "$2" > $3/output/$1 2> $3/error/$1
 }
@@ -164,9 +158,9 @@ generate-console-report ()
     fqdn=""
     ping -c1 -w1 "$1-$c" &>/dev/null && \
      fqdn=$(nslookup "$1-$c"|grep -i "$1-$c"|grep -v NXDOMAIN|awk '{ if (/Name:/) {print $2} else if (/canonical name/) {print $1} else {print $0} }') && \
-      echo "$1 $fqdn" >> $CONSOLE_CHECK_DIR/console_available && break
+      echo "$1 $fqdn" >> "$CONSOLE_CHECK_DIR/console_available" && break
   done
-  [ ! "$fqdn" ] && echo $1 >> $CONSOLE_CHECK_DIR/console_not_available
+  [ ! "$fqdn" ] && echo $1 >> "$CONSOLE_CHECK_DIR/console_not_available"
 }
 
 generate-login-report ()
@@ -174,8 +168,8 @@ generate-login-report ()
   hosts=()
   file="$SSH_CHECK_DIR/ssh_with_root_login"
   [ -f "$file" ] && hosts=( $(cat "$file") )
-  if in-array $1 ${hosts[*]}; then
 
+  if in-array $1 ${hosts[*]}; then
     user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 \
      "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
     [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
@@ -201,28 +195,58 @@ generate-health-report ()
   if in-array $1 ${hosts[*]}; then
     ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   else
-    hosts=()
-    file="$SSH_CHECK_DIR/ssh_root_login_not_possible"
-    [ -f "$file" ] && hosts=( $(cat "$file") )
-    if in-array $1 ${hosts[*]}; then
-      ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
-    else
-      echo $1 >> $HEALTH_CHECK_DIR/ssh_not_reachable
-      return 1
-    fi
+    ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
   cpu_usage=$($ssh_string "uptime|awk '{print \$NF*100}'" 2>/dev/null)
   ram_usage=$($ssh_string "free|grep -i mem|awk '{print \$3*100/\$2}'|xargs printf '%.*f\n' 0" 2>/dev/null)
   active_sessions=$($ssh_string "who|wc -l" 2>/dev/null)
 
-  if [ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$logged_in_users" -ge 20 ]; then
-    [ "$cpu_usage" -ge 70 ] && echo $1 >> $HEALTH_CHECK_DIR/high_cpu_usage
-    [ "$ram_usage" -ge 70 ] && echo $1 >> $HEALTH_CHECK_DIR/high_ram_usage
-    [ "$active_sessions" -ge 20 ] && echo $1 >> $HEALTH_CHECK_DIR/high_active_sessions
-    echo $1 >> $HEALTH_CHECK_DIR/bad_health
+  if [ $cpu_usage -ge 70 ]||[ $ram_usage -ge 70 ]||[ $active_sessions -ge 20 ]; then
+    [ $cpu_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70"
+    [ $cpu_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80"
+    [ $cpu_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90"
+    [ $ram_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70"
+    [ $ram_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80"
+    [ $ram_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90"
+    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
+    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
+    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
+    echo $1 >> $HEALTH_CHECK_DIR/unhealthy_hosts
   else
-    echo $1 >> $HEALTH_CHECK_DIR/good_health
+    echo $1 >> $HEALTH_CHECK_DIR/healthy_hosts
   fi
+}
+
+generate-mount-report ()
+{
+  host=$1 && shift
+  file="$SSH_CHECK_DIR/ssh_with_root_login"
+  [ -f "$file" ] && hosts=( $(cat "$file") )
+  if in-array $host ${hosts[*]}; then
+    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $host"
+    login_user="root"
+  else
+    ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $host"
+    login_user=$USER
+  fi
+
+  for v; do
+    mounted=$(timeout -s9 $SSH_TIMEOUT $ssh_string "df $v|tail -1" 2>/dev/null) 2>/dev/null
+    report_file=$(echo "$v"|sed 's/\//\⁄/g')
+    if [ "$mounted" ]; then
+      echo $host >> "$MOUNT_CHECK_DIR/$report_file""_mounted"
+      used=$(echo "$mounted"|awk '{print $5}'|cut -d% -f1)
+      [ "$used" -ge 95 ] && echo $host >> "$MOUNT_CHECK_DIR/$report_file""_disk_usage_above_95"
+      owner=$(timeout -s9 $SSH_TIMEOUT $ssh_string "ls -ld $v|awk '{print \$3}'" 2>/dev/null) 2>/dev/null
+      if [ "$login_user" == "root" ]; then
+        read_only=$(timeout -s9 $SSH_TIMEOUT $ssh_string "su $owner -s /bin/sh -c \
+         'touch $v/mount_test || echo read_only'" 2>/dev/null) 2>/dev/null
+        [ "$read_only" ] && echo $host >> "$MOUNT_CHECK_DIR/$report_file""_read_only_filesystem"
+      fi
+    else
+      echo $host >> "$MOUNT_CHECK_DIR/$report_file""_not_mounted"
+    fi
+  done
 }
 
 # Looper functions (reads input and calls single action functions in loop)
@@ -332,7 +356,7 @@ config-check ()
 {
   files_to_check=( "/etc/fstab" "/etc/mtab" "/etc/network/interfaces" \
                   "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" \
-                  "/etc/puppet.conf" "/var/spool/cron/crontabs/root" "/etc/sudoers" )
+                  "/etc/puppet.conf" "/etc/sudoers" )
 
   command_to_run="echo OS Arch;echo =============================;uname -a;echo;echo;"
   command_to_run=$command_to_run"echo Linux distro;echo =============================;lsb_release -a;echo;echo;"
@@ -375,11 +399,11 @@ config-check ()
 
 login-check ()
 {
-  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || ssh-check
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
   [ -d "$LOGIN_CHECK_DIR" ] && rm -rf "$LOGIN_CHECK_DIR"
   mkdir -p "$LOGIN_CHECK_DIR" || exit 1
 
-  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login") )
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
@@ -398,13 +422,11 @@ login-check ()
 
 health-check ()
 {
-  [ -f "$SSH_CHECK_DIR/ssh_with_root_login" ] || ssh-check
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
   [ -d "$HEALTH_CHECK_DIR" ] && rm -rf "$HEALTH_CHECK_DIR"
   mkdir -p "$HEALTH_CHECK_DIR" || exit 1
 
-  login-check
-
-  targets=( $(cat "$SSH_CHECK_DIR/ssh_with_root_login") )
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
@@ -415,6 +437,35 @@ health-check ()
     i=$(($i+1))
     echo -en "  Generating health check report... ($i/$c)                 \r"
     generate-health-report $t &
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+  done
+  wait
+  echo "                                                                   "
+}
+
+mount-check ()
+{
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
+  [ -d "$MOUNT_CHECK_DIR" ] && rm -rf "$MOUNT_CHECK_DIR"
+  mkdir -p "$MOUNT_CHECK_DIR" || exit 1
+
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
+  echo
+  [ ! "${targets}" ] && echo "No target found..." && exit 1
+
+  echo "Enter mount points to check and press 'CTRL+D'"
+  echo "─────────────────────────────────────────────"
+  readarray mounts
+  echo
+  [ ! "${mounts}" ] && return 1
+
+  sudo ssh 2>/dev/null
+  c=${#targets[*]}
+  i=0
+  for t in ${targets[*]}; do
+    i=$(($i+1))
+    echo -en "  Generating mount check report... ($i/$c)                 \r"
+    generate-mount-report $t ${mounts[*]} &
     [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
@@ -546,15 +597,15 @@ display-menu ()
     ans=""
     read -p "> " ans
     case $ans in
-      [1-9])
+      [1-9]|[1-9][0-9])
         [ "${reports[$ans]}" ] && echo && cat ${reports[$ans]} && echo && read -sp "[Press ENTER to continue]";;
-      [eo][1-9])
+      [eo][1-9]|[eo][1-9][0-9])
         read -p "Search hostname(wildcard) or leave blank to display all : " search && echo
         option=""
         [ "$search" ] && option="-name "$search
 
         for h in $(find ${reports[$ans]} -type f $option|xargs -l basename 2>/dev/null);do
-          echo "* "$h$HR; cat "${reports[$ans]}/$h"; echo;echo;
+          echo " $h $HR"; cat "${reports[$ans]}/$h"; echo;echo;
         done
 
         read -sp "[Press ENTER to continue]";;
