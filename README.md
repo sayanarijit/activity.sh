@@ -3,7 +3,8 @@
 This is a powerfull (customizable) script for system admins to be prepared for upcoming bulk server activities.
 
 Features:
-* Basic functions: ping check, ssh check, console check, configuration check, execute command, login check, report generation.
+* Basic functions: ping check, ssh check, console check, configuration check, execute command, login check (local user),
+  health check (cpu, ram, active sessions), mount check (read only fs), report generation.
 * Interactive and very easy to use.
 * Runs simultaneous background process.
 * Smart enough to run functions step by step (e.g. before performing ssh check, it performs ping check first).
