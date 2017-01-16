@@ -47,17 +47,17 @@ echo "<h1>Activity report for - ".$activity_name."</h1>";
 echo "<div style='width:28%; float:left'>";
 # Left panel
 foreach ($basic_reports as $key => $value) {
-  echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
+  echo "<h3>".str_replace('_',' ',basename($value))."</h3>";
   echo "<table>";
   foreach(glob($value."/*") as $k => $v){
     $fileID[$i] = $v;
-    echo "<tr><td><a href='?file=".$i."'>".ucfirst(str_replace('_',' ',basename($v)))."</a></td><td>: ".count(read_lines($v))."</td></tr>";
+    echo "<tr><td><a href='?file=".$i."'>".str_replace('_',' ',basename($v))."</a></td><td>: ".count(read_lines($v))."</td></tr>";
     $i++;
   }
   echo "</table>";
 }
 foreach ($advance_reports as $key => $value) {
-  echo "<h3>".ucfirst(str_replace('_',' ',basename($value)))."</h3>";
+  echo "<h3>".str_replace('_',' ',basename($value))."</h3>";
   foreach(glob($value."/*") as $k => $v){
     $dirID[$j.'-output'] = $v."/output";
     $dirID[$j.'-error'] = $v."/error";
