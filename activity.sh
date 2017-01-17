@@ -180,7 +180,7 @@ generate-login-report ()
     if [ "$?" == 0 ]; then
       echo $1 >> "$LOGIN_CHECK_DIR/user_login_successful"
     else
-      echo $1 >> "$LOGIN_CHECK_DIR/user_login_unsuccessful"
+      echo $1 >> "$LOGIN_CHECK_DIR/user_login_failed"
     fi
   else
     echo $1 >> "$LOGIN_CHECK_DIR/ssh_root_login_not_possible"
@@ -197,23 +197,27 @@ generate-health-report ()
   else
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
-  cpu_usage=$($ssh_string "uptime|awk '{print \$NF*100}'" 2>/dev/null)
-  ram_usage=$($ssh_string "free|grep -i mem|awk '{print \$3*100/\$2}'|xargs printf '%.*f\n' 0" 2>/dev/null)
-  active_sessions=$($ssh_string "who|wc -l" 2>/dev/null)
+  cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
+  ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
+  disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $6}' 2>/dev/null)
 
-  if [ $cpu_usage -ge 70 ]||[ $ram_usage -ge 70 ]||[ $active_sessions -ge 20 ]; then
-    [ $cpu_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70"
-    [ $cpu_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80"
-    [ $cpu_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90"
-    [ $ram_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70"
-    [ $ram_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80"
-    [ $ram_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90"
-    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
-    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
-    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
-    echo $1 >> $HEALTH_CHECK_DIR/unhealthy_hosts
+  if [ "$disk_full" ]||[ $cpu_usage -ge 70 ]||[ $ram_usage -ge 70 ]||[ $active_sessions -ge 20 ]; then
+    [ $cpu_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70%"
+    [ $cpu_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80%"
+    [ $cpu_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90%"
+    [ $ram_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
+    [ $ram_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
+    [ $ram_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
+    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20%"
+    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35%"
+    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50%"
+    for d in $disk_full;do
+      echo $1 >> "$HEALTH_CHECK_DIR/disk_usage_above_95%_:_$(echo $d|sed 's/\//\⁄/g')"
+    done
+    echo $1 >> "$HEALTH_CHECK_DIR/unhealthy_hosts"
   else
-    echo $1 >> $HEALTH_CHECK_DIR/healthy_hosts
+    echo $1 >> "$HEALTH_CHECK_DIR/healthy_hosts"
   fi
 }
 
@@ -234,17 +238,17 @@ generate-mount-report ()
     mounted=$(timeout -s9 $SSH_TIMEOUT $ssh_string "df $v|tail -1" 2>/dev/null) 2>/dev/null
     report_file=$(echo "$v"|sed 's/\//\⁄/g')
     if [ "$mounted" ]; then
-      echo $host >> "$MOUNT_CHECK_DIR/$report_file""_mounted"
+      echo $host >> "$MOUNT_CHECK_DIR/mounted_:_$report_file"
       used=$(echo "$mounted"|awk '{print $5}'|cut -d% -f1)
-      [ "$used" -ge 95 ] && echo $host >> "$MOUNT_CHECK_DIR/$report_file""_disk_usage_above_95"
-      owner=$(timeout -s9 $SSH_TIMEOUT $ssh_string "ls -ld $v|awk '{print \$3}'" 2>/dev/null) 2>/dev/null
+      [ $used -ge 95 ] && echo $host >> "$MOUNT_CHECK_DIR/volume_usage_above_95%_:_$report_file"
+      owner=$(timeout -s9 $SSH_TIMEOUT $ssh_string "ls -ld $v"|awk '{print $3}' 2>/dev/null) 2>/dev/null
       if [ "$login_user" == "root" ]; then
         read_only=$(timeout -s9 $SSH_TIMEOUT $ssh_string "su $owner -s /bin/sh -c \
          'touch $v/mount_test || echo read_only'" 2>/dev/null) 2>/dev/null
-        [ "$read_only" ] && echo $host >> "$MOUNT_CHECK_DIR/$report_file""_read_only_filesystem"
+        [ "$read_only" ] && echo $host >> "$MOUNT_CHECK_DIR/read_only_mount_:_$report_file"
       fi
     else
-      echo $host >> "$MOUNT_CHECK_DIR/$report_file""_not_mounted"
+      echo $host >> "$MOUNT_CHECK_DIR/not_mounted_:_$report_file"
     fi
   done
 }
@@ -555,12 +559,12 @@ display-menu ()
     i=0
     report=""
     for d in ${basic_reports[*]}; do
-      report=$report"\e[4m$(basename $d)\e[0m \n"
+      report=$report"_\n *_\e[4m$(basename $d)\e[0m \n"
       found=( $(find $d -type f 2>>/dev/null) )
       for f in ${found[*]}; do
         i=$(($i+1))
         reports[$i]="$f"
-        report=$report" $i) $(basename $f) : $(cat $f|wc -l) \n"
+        report=$report" $i)_$(basename $f) : $(cat $f|wc -l) \n"
       done
     done
 
