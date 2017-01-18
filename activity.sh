@@ -209,9 +209,9 @@ generate-health-report ()
     [ $ram_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
     [ $ram_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
     [ $ram_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
-    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20%"
-    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35%"
-    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50%"
+    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
+    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
+    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
     for d in $disk_full;do
       echo $1 >> "$HEALTH_CHECK_DIR/disk_usage_above_95%_:_$(echo $d|sed 's/\//\⁄/g')"
     done
