@@ -572,15 +572,15 @@ display-menu ()
     unset advance_reports[0]
     i=0
     for d in ${advance_reports[*]}; do
-      report=$report"\e[4m$(basename $d)\e[0m \n"
+      report=$report"_\n *_\e[4m$(basename $d)\e[0m \n"
       found=( $(find "$d" -maxdepth 1 -type d 2>/dev/null) )
       unset found[0]
       for f in ${found[*]}; do
         i=$(($i+1))
         reports[e$i]="$f/error"
         reports[o$i]="$f/output"
-        report=$report" o$i) $(cat "$f/name"|tr " " "_") output \n"
-        report=$report" e$i) $(cat "$f/name"|tr " " "_") error \n"
+        [ -f "$f/name" ] && report=$report" o$i) $(cat "$f/name"|tr " " "_") output \n"
+        [ -f "$f/name" ] && report=$report" e$i) $(cat "$f/name"|tr " " "_") error \n"
       done
     done
 
