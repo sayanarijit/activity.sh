@@ -17,7 +17,7 @@ MENU[x]="delete-this-activity"
 MENU[y]="rename-this-activity"
 
 # Initialize global variables --------------------------------------------------
-REPORT_DIR="/tmp/activity-reports"
+REPORT_DIR="$HOME/activity-reports"
 
 # ACTIVITY_NAME
 if [ -d "$REPORT_DIR" ] && [ "$(ls $REPORT_DIR)" ]; then
