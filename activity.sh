@@ -564,7 +564,7 @@ display-menu ()
       for f in ${found[*]}; do
         i=$(($i+1))
         reports[$i]="$f"
-        report=$report" $i)_$(basename $f) : $(cat $f|wc -l) \n"
+        report=$report" $i)_$(basename $f) :_$(cat $f|wc -l) \n"
       done
     done
 
