@@ -198,7 +198,7 @@ generate-health-report ()
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
   cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
-  ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  ram_usage=$($ssh_string "cat /proc/meminfo"|grep -i mem|awk '{print $2}'|tr "\n" " "|awk '{print ($1-$2)*100/$1}' 2>/dev/null)
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
   disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $6}' 2>/dev/null)
 
