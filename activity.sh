@@ -202,7 +202,7 @@ generate-health-report ()
   ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
   [ "$ram_usage" ]||ram_usage=0
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
-  disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $6}' 2>/dev/null)
+  disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $NF}' 2>/dev/null)
 
   if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$active_sessions" -ge 20 ]; then
     [ "$cpu_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70%"
