@@ -13,7 +13,7 @@ MENU[f]="login-check"
 MENU[g]="health-check"
 MENU[h]="mount-check"
 MENU[w]="publish-unpublish"
-MENU[x]="delete-this-activity"
+MENU[x]="remove-this-activity"
 MENU[y]="rename-this-activity"
 
 # Initialize global variables --------------------------------------------------
@@ -515,7 +515,7 @@ publish-unpublish ()
   fi
 }
 
-delete-this-activity ()
+remove-this-activity ()
 {
   echo
   echo "You are going to delete $ACTIVITY_DIR and unpublish website if exists."
