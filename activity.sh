@@ -17,13 +17,13 @@ MENU[x]="remove-this-activity"
 MENU[y]="rename-this-activity"
 
 # Initialize global variables --------------------------------------------------
-REPORT_DIR="$HOME/activity-reports"
+REPORT_DIR="/tmp/$USER/activity-reports"
 
 # ACTIVITY_NAME
 if [ -d "$REPORT_DIR" ] && [ "$(ls $REPORT_DIR)" ]; then
   echo "Previous activities"
   echo "───────────────────"
-  ls -t -1 $REPORT_DIR
+  ls -t -1 "$REPORT_DIR"
   echo
   read -p "Enter activity name to continue or leave blank to start fresh : " ACTIVITY_NAME
   echo
@@ -148,7 +148,7 @@ generate-execute-command-report ()
   else
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
-  eval $ssh_string "$2" > $3/output/$1 2> $3/error/$1
+  $ssh_string "$2" > $3/output/$1 2> $3/error/$1
 }
 
 generate-console-report ()
@@ -199,7 +199,7 @@ generate-health-report ()
   fi
   cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
   [ "$cpu_usage" ]||cpu_usage=0
-  ram_usage=$($ssh_string "free 2>/dev/null"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
   [ "$ram_usage" ]||ram_usage=0
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
   disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $6}' 2>/dev/null)
@@ -241,8 +241,8 @@ generate-mount-report ()
     report_file=$(echo "$v"|sed 's/\//\⁄/g')
     if [ "$mounted" ]; then
       echo $host >> "$MOUNT_CHECK_DIR/mounted_:_$report_file"
-      used=$(echo "$mounted"|awk '{print $5}'|cut -d% -f1)
-      [ $used -ge 95 ] && echo $host >> "$MOUNT_CHECK_DIR/volume_usage_above_95%_:_$report_file"
+      used=$(echo "$mounted"|grep -o "...%"|awk '{print $1}'|cut -d% -f1)
+      [ "$used" ]&&[ $used -ge 95 ] && echo $host >> "$MOUNT_CHECK_DIR/volume_usage_above_95%_:_$report_file"
       owner=$(timeout -s9 $SSH_TIMEOUT $ssh_string "ls -ld $v"|awk '{print $3}' 2>/dev/null) 2>/dev/null
       if [ "$login_user" == "root" ]; then
         read_only=$(timeout -s9 $SSH_TIMEOUT $ssh_string "su $owner -s /bin/sh -c \
