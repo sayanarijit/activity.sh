@@ -198,20 +198,22 @@ generate-health-report ()
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
   cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
-  ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  [ "$cpu_usage" ]||cpu_usage=0
+  ram_usage=$($ssh_string "free 2>/dev/null"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  [ "$ram_usage" ]||ram_usage=0
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
   disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $6}' 2>/dev/null)
 
-  if [ "$disk_full" ]||[ $cpu_usage -ge 70 ]||[ $ram_usage -ge 70 ]||[ $active_sessions -ge 20 ]; then
-    [ $cpu_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70%"
-    [ $cpu_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80%"
-    [ $cpu_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90%"
-    [ $ram_usage -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
-    [ $ram_usage -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
-    [ $ram_usage -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
-    [ $active_sessions -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
-    [ $active_sessions -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
-    [ $active_sessions -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
+  if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$active_sessions" -ge 20 ]; then
+    [ "$cpu_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70%"
+    [ "$cpu_usage" -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80%"
+    [ "$cpu_usage" -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90%"
+    [ "$ram_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
+    [ "$ram_usage" -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
+    [ "$ram_usage" -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
+    [ "$active_sessions" -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
+    [ "$active_sessions" -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
+    [ "$active_sessions" -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
     for d in $disk_full;do
       echo $1 >> "$HEALTH_CHECK_DIR/disk_usage_above_95%_:_$(echo $d|sed 's/\//\⁄/g')"
     done
@@ -579,8 +581,8 @@ display-menu ()
         i=$(($i+1))
         reports[e$i]="$f/error"
         reports[o$i]="$f/output"
-        [ -f "$f/name" ] && report=$report" o$i) $(cat "$f/name"|tr " " "_") output \n"
-        [ -f "$f/name" ] && report=$report" e$i) $(cat "$f/name"|tr " " "_") error \n"
+        [ -f "$f/name" ] && report=$report" o$i)_$(cat "$f/name"|tr " " "_") output \n"
+        [ -f "$f/name" ] && report=$report" e$i)_$(cat "$f/name"|tr " " "_") error \n"
       done
     done
 
