@@ -401,7 +401,7 @@ config-check ()
 {
   files_to_check=( "/etc/fstab" "/etc/mtab" "/etc/network/interfaces" \
                   "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" \
-                  "/etc/puppet.conf" "/etc/sudoers" "/etc/juniper.facts" )
+                  "/etc/puppet.conf" "/etc/sudoers" )
 
   command_to_run="echo OS Arch;echo =============================;uname -a;echo;echo;"
   command_to_run=$command_to_run"echo Linux distro;echo =============================;lsb_release -a 2>/dev/null;echo;echo;"
