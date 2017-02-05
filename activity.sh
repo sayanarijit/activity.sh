@@ -12,9 +12,11 @@ MENU[e]="execute-command"
 MENU[f]="login-check"
 MENU[g]="health-check"
 MENU[h]="mount-check"
+MENU[i]="port-scan"
 MENU[w]="publish-unpublish"
 MENU[x]="remove-this-activity"
 MENU[y]="rename-this-activity"
+MENU[z]="exit"
 
 # Initialize global variables --------------------------------------------------
 REPORT_DIR="$HOME/activity-reports"
@@ -28,9 +30,9 @@ if [ -d "$REPORT_DIR" ] && [ "$(ls $REPORT_DIR)" ]; then
   read -p "Enter activity name to continue or leave blank to start fresh : " ACTIVITY_NAME
   echo
   [ "$ACTIVITY_NAME" ] && [ ! -d "$REPORT_DIR/$ACTIVITY_NAME" ] && echo "Not found !" && exit 1
-  [ ! "$ACTIVITY_NAME" ] && ACTIVITY_NAME=$(date|tr ' ' '_'|tr ':' '-')
+  [ ! "$ACTIVITY_NAME" ] && ACTIVITY_NAME=$(date +%d-%h-%y_%Hh%Mm%Ss)
 else
-  ACTIVITY_NAME=$(date|tr ' ' '_'|tr ':' '-')
+  ACTIVITY_NAME=$(date +%d-%h-%y_%Hh%Mm%Ss)
 fi
 
 # Paths
@@ -42,16 +44,17 @@ CONSOLE_CHECK_DIR="$BASIC_REPORT_DIR/console_check"
 LOGIN_CHECK_DIR="$BASIC_REPORT_DIR/login_check"
 HEALTH_CHECK_DIR="$BASIC_REPORT_DIR/health_check"
 MOUNT_CHECK_DIR="$BASIC_REPORT_DIR/mount_check"
+PORT_SCAN_DIR="$BASIC_REPORT_DIR/port_scan"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
 SET_SSH_KEY_SCRIPT="/script/bin/setPassKey.sh"                                  # Will run if 1st ssh attempt fails
 WEBSITE_PATH="/var/www/html/activity-reports"                                   # To publish reports in website
-WEBPAGE_FILE="./activity.php"                                                   # This is the home page for website
+WEBPAGE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/activity.php"       # This is the home page for website
 
 # Timeouts
 SSH_TIMEOUT=10
-SSH_SET_KEY_TIMEOUT=25
+SSH_SET_KEY_TIMEOUT=60
 
 # Servers
 WEBSERVER="localhost"                                                           # Will be used to publish reports
@@ -86,6 +89,14 @@ generate-ssh-report ()
 {
   sudo ssh-keygen -R $1 &>/dev/null
   ssh-keygen -R $1 &>/dev/null
+
+  # Check if port 22 is open
+  if nc -z $1 22;then
+    echo $1 >> "$SSH_CHECK_DIR/port_22_open"
+  else
+    echo $1 >> "$SSH_CHECK_DIR/port_22_closed"
+    return 1
+  fi
 
   # Try 1 : Try login with root
   start=$(date +%s)
@@ -148,19 +159,27 @@ generate-execute-command-report ()
   else
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
+<<<<<<< HEAD
+  $ssh_string "$2" > "$3/output/$1" 2> "$3/error/$1"
+  [ "$(cat $3/output/$1 2>/dev/null)" ] || rm -f "$3/output/$1"
+  [ "$(cat $3/error/$1 2>/dev/null)" ] || rm -f "$3/error/$1"
+  return 0
+=======
   $ssh_string "$2" > $3/output/$1 2> $3/error/$1
+>>>>>>> e34f4382463ec296f13ef47f1ccc933c731ca889
 }
 
 generate-console-report ()
 {
   cons="ilo con imm ilom alom xscf power"
-  for c in $cons;do
+  for con in $cons;do
     fqdn=""
-    ping -c1 -w1 "$1-$c" &>/dev/null && \
-     fqdn=$(nslookup "$1-$c"|grep -i "$1-$c"|grep -v NXDOMAIN|awk '{ if (/Name:/) {print $2} else if (/canonical name/) {print $1} else {print $0} }') && \
+    ping -c1 -w1 "$1-$con" &>/dev/null && \
+     fqdn=$(nslookup "$1-$con"|grep -i "$1-$con"|grep -v NXDOMAIN|awk '{ if (/Name:/) {print $2} else if (/canonical name/) {print $1} else {print $0} }') && \
       echo "$1 $fqdn" >> "$CONSOLE_CHECK_DIR/console_available" && break
   done
   [ ! "$fqdn" ] && echo $1 >> "$CONSOLE_CHECK_DIR/console_not_available"
+  return 0
 }
 
 generate-login-report ()
@@ -185,6 +204,7 @@ generate-login-report ()
   else
     echo $1 >> "$LOGIN_CHECK_DIR/ssh_root_login_not_possible"
   fi
+  return 0
 }
 
 generate-health-report ()
@@ -199,18 +219,31 @@ generate-health-report ()
   fi
   cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
   [ "$cpu_usage" ]||cpu_usage=0
+<<<<<<< HEAD
+  # ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)       # free command is limited to linux
+  # [ "$ram_usage" ]||ram_usage=0
+  active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
+  disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $NF}' 2>/dev/null)
+  uptime=$($ssh_string "uptime"|grep -i days|cut -dd -f1|awk '{print $NF}' 2>/dev/null)
+  [ "$uptime" ]||uptime=0
+=======
   ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
   [ "$ram_usage" ]||ram_usage=0
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
   disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $NF}' 2>/dev/null)
+>>>>>>> e34f4382463ec296f13ef47f1ccc933c731ca889
 
-  if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$active_sessions" -ge 20 ]; then
+  # if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$uptime" -ge 200 ]||[ "$active_sessions" -ge 20 ]; then
+  if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$uptime" -ge 200 ]||[ "$active_sessions" -ge 20 ]; then
     [ "$cpu_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_70%"
     [ "$cpu_usage" -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_80%"
     [ "$cpu_usage" -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/cpu_usage_above_90%"
-    [ "$ram_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
-    [ "$ram_usage" -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
-    [ "$ram_usage" -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
+    # [ "$ram_usage" -ge 70 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_70%"
+    # [ "$ram_usage" -ge 80 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_80%"
+    # [ "$ram_usage" -ge 90 ] && echo $1 >> "$HEALTH_CHECK_DIR/ram_usage_above_90%"
+    [ "$uptime" -ge 200 ] && echo $1 >> "$HEALTH_CHECK_DIR/uptime_above_200_days"
+    [ "$uptime" -ge 350 ] && echo $1 >> "$HEALTH_CHECK_DIR/uptime_above_350_days"
+    [ "$uptime" -ge 500 ] && echo $1 >> "$HEALTH_CHECK_DIR/uptime_above_500_days"
     [ "$active_sessions" -ge 20 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_20"
     [ "$active_sessions" -ge 35 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_35"
     [ "$active_sessions" -ge 50 ] && echo $1 >> "$HEALTH_CHECK_DIR/active_sessions_above_50"
@@ -221,6 +254,7 @@ generate-health-report ()
   else
     echo $1 >> "$HEALTH_CHECK_DIR/healthy_hosts"
   fi
+  return 0
 }
 
 generate-mount-report ()
@@ -253,6 +287,17 @@ generate-mount-report ()
       echo $host >> "$MOUNT_CHECK_DIR/not_mounted_:_$report_file"
     fi
   done
+  return 0
+}
+
+generate-port-scan-report ()
+{
+  if nc -z $1 $2; then
+    echo $1 >> "$PORT_SCAN_DIR/port_"$2"_open"
+  else
+    echo $1 >> "$PORT_SCAN_DIR/port_"$2"_closed"
+  fi
+  return 0
 }
 
 # Looper functions (reads input and calls single action functions in loop)
@@ -263,8 +308,8 @@ ping-check ()
 
   echo "Paste targets below and press 'CTRL+D'"
   echo "──────────────────────────────────────"
-  cat > $PING_CHECK_DIR/all_hosts
-  targets=( $(cat "$PING_CHECK_DIR/all_hosts") )
+  readarray targets
+  echo ${targets[*]}|tr " " "\n" > $PING_CHECK_DIR/all_hosts
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
@@ -273,10 +318,8 @@ ping-check ()
   for t in ${targets[*]}; do
     i=$(($i+1))
     echo -en "  Generating ping check report... ($i/$c)                 \r"
-    generate-ping-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    generate-ping-report $t
   done
-  wait
   echo "                                                                   "
 }
 
@@ -362,16 +405,16 @@ config-check ()
 {
   files_to_check=( "/etc/fstab" "/etc/mtab" "/etc/network/interfaces" \
                   "/etc/nsswitch.conf" "/etc/yp.conf" "/etc/ssh/sshd_config" \
-                  "/etc/puppet.conf" "/etc/sudoers" )
+                  "/etc/puppet.conf" "/etc/sudoers" "/etc/juniper.facts" )
 
   command_to_run="echo OS Arch;echo =============================;uname -a;echo;echo;"
-  command_to_run=$command_to_run"echo Linux distro;echo =============================;lsb_release -a;echo;echo;"
+  command_to_run=$command_to_run"echo Linux distro;echo =============================;lsb_release -a 2>/dev/null;echo;echo;"
   command_to_run=$command_to_run"echo Uptime;echo =============================;uptime;echo;echo;"
   command_to_run=$command_to_run"echo Network;echo =============================;ifconfig -a;echo;echo;"
   command_to_run=$command_to_run"echo Gateway;echo =============================;netstat -nr;echo;echo;"
 
   for f in ${files_to_check[*]}; do
-    command_to_run=$command_to_run"echo $f;echo =============================;cat $f;echo;echo;"
+    command_to_run=$command_to_run"[ -f $f ] && echo $f && echo ============================= && cat $f && echo && echo;"
   done
 
   [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
@@ -384,7 +427,7 @@ config-check ()
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
-  echo "Config check - "$(date) > $dir/name || exit 1
+  echo $(date +%d-%h-%y" "%H:%M) > "$dir/name" || exit 1
 
   sudo ssh 2>/dev/null
   c=${#targets[*]}
@@ -473,6 +516,36 @@ mount-check ()
     echo -en "  Generating mount check report... ($i/$c)                 \r"
     generate-mount-report $t ${mounts[*]} &
     [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+  done
+  wait
+  echo "                                                                   "
+}
+
+port-scan ()
+{
+  [ -f "$PING_CHECK_DIR/available_hosts" ] || ping-check
+  [ -d "$PORT_SCAN_DIR" ] && rm -rf "$PORT_SCAN_DIR"
+  mkdir -p "$PORT_SCAN_DIR" || exit 1
+
+  targets=( $(cat "$PING_CHECK_DIR/available_hosts") )
+  echo
+  [ ! "${targets}" ] && echo "No target found..." && exit 1
+
+  echo "Enter port numbers to scan and press 'CTRL+D'"
+  echo "─────────────────────────────────────────────"
+  readarray ports
+  echo
+  [ ! "${ports}" ] && return 1
+
+  i=0
+  c=${#targets[*]}
+  for t in ${targets[*]}; do
+    i=$(($i+1))
+    echo -en "  Generating port scan report... ($i/$c)                 \r"
+    for p in ${ports[*]};do
+      generate-port-scan-report $t $p &
+      [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    done
   done
   wait
   echo "                                                                   "
@@ -581,8 +654,8 @@ display-menu ()
         i=$(($i+1))
         reports[e$i]="$f/error"
         reports[o$i]="$f/output"
-        [ -f "$f/name" ] && report=$report" o$i)_$(cat "$f/name"|tr " " "_") output \n"
-        [ -f "$f/name" ] && report=$report" e$i)_$(cat "$f/name"|tr " " "_") error \n"
+        [ -f "$f/name" ] && report=$report" o$i)_$(cat "$f/name"|tr " " "_")_>_output :_$(ls "$f/output"|wc -w) \n"
+        [ -f "$f/name" ] && report=$report" e$i)_$(cat "$f/name"|tr " " "_")_>_error :_$(ls "$f/error"|wc -w) \n"
       done
     done
 

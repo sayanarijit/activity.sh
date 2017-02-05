@@ -58,11 +58,12 @@ foreach ($basic_reports as $key => $value) {
 }
 foreach ($advance_reports as $key => $value) {
   echo "<h3>".str_replace('_',' ',basename($value))."</h3>";
+  echo "<table>";
   foreach(glob($value."/*") as $k => $v){
     $dirID[$j.'-output'] = $v."/output";
     $dirID[$j.'-error'] = $v."/error";
-    echo "<a href='?dir=".$j."-output'>".read_file($v."/name")." : output</a>";
-    echo "<a href='?dir=".$j."-error'>".read_file($v."/name")." : error</a>";
+    echo "<tr><td><a href='?dir=".$j."-output'>".read_file($v."/name")." > output</a></td><td>: ".count(glob($v."/output/*"))."</td></tr>";
+    echo "<tr><td><a href='?dir=".$j."-error'>".read_file($v."/name")." > error</a></td><td>: ".count(glob($v."/error/*"))."</td></tr>";
     $j++;
   }
   echo "</table>";
