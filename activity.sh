@@ -54,7 +54,7 @@ WEBPAGE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/activity.php"       
 
 # Timeouts
 SSH_TIMEOUT=10
-SSH_SET_KEY_TIMEOUT=60
+SET_SSH_KEY_TIMEOUT=60
 
 # Servers
 WEBSERVER="localhost"                                                           # Will be used to publish reports
@@ -113,7 +113,7 @@ generate-ssh-report ()
     fi
   else
     # Try 2 : Set passwordless key and try login with root
-    temp=$(timeout -s9 $SSH_SET_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
+    temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
 
     start=$(date +%s)
     hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
