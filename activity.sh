@@ -314,8 +314,10 @@ ping-check ()
   for t in ${targets[*]}; do
     i=$(($i+1))
     echo -en "  Generating ping check report... ($i/$c)                 \r"
-    generate-ping-report $t
+    generate-ping-report $t &
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
+  wait
   echo "                                                                   "
 }
 
