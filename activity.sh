@@ -49,7 +49,7 @@ OS_CHECK_DIR="$BASIC_REPORT_DIR/os_check"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
-SET_SSH_KEY_SCRIPT="/script/bin/setPassKey.sh"                                  # Will run if 1st ssh attempt fails
+SET_SSH_KEY_SCRIPT=""                                                           # Will run if 1st ssh attempt fails
 WEBSITE_PATH="/var/www/html/activity-reports"                                   # To publish reports in website
 WEBPAGE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/activity.php"       # This is the home page for website
 
@@ -115,19 +115,21 @@ generate-ssh-report ()
     fi
   else
     # Try 2 : Set passwordless key and try login with root
-    temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
+    if [ "$SET_SSH_KEY_SCRIPT" ];then
+      temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
 
-    start=$(date +%s)
-    hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
-    end=$(date +%s)
+      start=$(date +%s)
+      hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+      end=$(date +%s)
 
-    if [ "$hostname" ];then
-      echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
-      echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
-      if (( $end-$start <= 5 )); then
-        echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
-      else
-        echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
+      if [ "$hostname" ];then
+        echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
+        echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
+        if (( $end-$start <= 5 )); then
+          echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
+        else
+          echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
+        fi
       fi
     else
       # Try 3 : Login with unix account
