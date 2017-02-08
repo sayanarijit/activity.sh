@@ -13,7 +13,7 @@ MENU[f]="login-check"
 MENU[g]="health-check"
 MENU[h]="mount-check"
 MENU[i]="port-scan"
-MENU[w]="publish-unpublish"
+MENU[j]="os-check"
 MENU[x]="remove-this-activity"
 MENU[y]="rename-this-activity"
 MENU[z]="exit"
@@ -45,6 +45,7 @@ LOGIN_CHECK_DIR="$BASIC_REPORT_DIR/login_check"
 HEALTH_CHECK_DIR="$BASIC_REPORT_DIR/health_check"
 MOUNT_CHECK_DIR="$BASIC_REPORT_DIR/mount_check"
 PORT_SCAN_DIR="$BASIC_REPORT_DIR/port_scan"
+OS_CHECK_DIR="$BASIC_REPORT_DIR/os_check"
 ADVANCE_REPORT_DIR="$ACTIVITY_DIR/advance_report"                               # Files/directories under it contains outputs
 EXECUTE_COMMAND_DIR="$ADVANCE_REPORT_DIR/execute_command"
 CONFIG_CHECK_DIR="$ADVANCE_REPORT_DIR/config_check"
@@ -55,6 +56,7 @@ WEBPAGE_FILE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/activity.php"       
 # Timeouts
 SSH_TIMEOUT=10
 SET_SSH_KEY_TIMEOUT=60
+EXECUTE_COMMAND_TIMEOUT=60
 
 # Servers
 WEBSERVER="localhost"                                                           # Will be used to publish reports
@@ -165,7 +167,7 @@ generate-execute-command-report ()
   [ "$(cat $3/error/$1 2>/dev/null)" ] || rm -f "$3/error/$1"
   return 0
 
-  $ssh_string "$2" > $3/output/$1 2> $3/error/$1
+  tmp=$(timeout -s9 $EXECUTE_COMMAND_TIMEOUT $ssh_string "$2" > $3/output/$1 2> $3/error/$1) &>/dev/null
 }
 
 generate-console-report ()
@@ -188,17 +190,35 @@ generate-login-report ()
   [ -f "$file" ] && hosts=( $(cat "$file") )
 
   if in-array $1 ${hosts[*]}; then
-    user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 \
-     "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
+    if [ "$2" ]; then
+      user=$2
+    else
+      user=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 \
+       "last|grep pts|grep -v root|tail -1"|awk '{print $1}')
+    fi
     [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
 
-    tmp=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o \
-     StrictHostKeyChecking=no $1 "su $user -c cd" 2>/dev/null) 2>/dev/null
+    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "id")
 
-    if [ "$?" == 0 ]; then
-      echo $1 >> "$LOGIN_CHECK_DIR/user_login_successful"
+    home=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o \
+     StrictHostKeyChecking=no $1 "su $user -c 'cd && pwd'" 2>/dev/null) 2>/dev/null
+
+    if [ "$id" ]; then
+      echo $1 >> "$LOGIN_CHECK_DIR/user_id_exists"
     else
-      echo $1 >> "$LOGIN_CHECK_DIR/user_login_failed"
+      echo $1 >> "$LOGIN_CHECK_DIR/user_id_missing"
+    fi
+
+    if [ "$home" ]; then
+      echo $1 >> "$LOGIN_CHECK_DIR/home_dir_exists"
+    else
+      echo $1 >> "$LOGIN_CHECK_DIR/home_dir_missing"
+    fi
+
+    if [ "$id" ]&&[ "$home" ];then
+      echo $1 >> "$LOGIN_CHECK_DIR/login_successful"
+    else
+      echo $1 >> "$LOGIN_CHECK_DIR/login_failed"
     fi
   else
     echo $1 >> "$LOGIN_CHECK_DIR/ssh_root_login_not_possible"
@@ -296,6 +316,29 @@ generate-port-scan-report ()
   return 0
 }
 
+generate-os-report ()
+{
+  hosts=()
+  file="$SSH_CHECK_DIR/ssh_reachable_hosts"
+  [ -f "$file" ] && hosts=( $(cat "$file") )
+  if in-array $1 ${hosts[*]}; then
+    ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
+  else
+    ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
+  fi
+  kernel=$($ssh_string "uname -s"|tr " " "_" 2>/dev/null)
+  if [ "$kernel" == "Linux" ];then
+    echo $1 >> "$OS_CHECK_DIR/$kernel"
+    dist=$($ssh_string "lsb_release -sir"|tr " " "_"|tr "\n" "_" 2>/dev/null)
+    echo $1 >> "$OS_CHECK_DIR/$dist"
+  elif [ ! "$kernel" ];then
+    echo $1 >> "$OS_CHECK_DIR/unknown"
+  else
+    echo $1 >> "$OS_CHECK_DIR/$kernel"
+  fi
+  return 0
+}
+
 # Looper functions (reads input and calls single action functions in loop)
 ping-check ()
 {
@@ -335,6 +378,7 @@ ssh-check ()
   i=0
   c=${#targets[*]}
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating ssh check report... ($i/$c)                 \r"
     generate-ssh-report $t &
@@ -364,6 +408,7 @@ execute-command ()
   c=${#targets[*]}
   i=0
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating command output report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
@@ -431,6 +476,7 @@ config-check ()
   c=${#targets[*]}
   i=0
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating configuration check report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
@@ -453,14 +499,16 @@ login-check ()
   targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
+  read -p "Enter username to check or leave blank for last active user : " user
 
   sudo ssh 2>/dev/null
   c=${#targets[*]}
   i=0
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating login check report... ($i/$c)                 \r"
-    generate-login-report $t &
+    generate-login-report $t $user &
     [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
@@ -481,6 +529,7 @@ health-check ()
   c=${#targets[*]}
   i=0
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating health check report... ($i/$c)                 \r"
     generate-health-report $t &
@@ -510,9 +559,34 @@ mount-check ()
   c=${#targets[*]}
   i=0
   for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
     i=$(($i+1))
     echo -en "  Generating mount check report... ($i/$c)                 \r"
     generate-mount-report $t ${mounts[*]} &
+    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+  done
+  wait
+  echo "                                                                   "
+}
+
+os-check ()
+{
+  [ -f "$SSH_CHECK_DIR/ssh_reachable_hosts" ] || ssh-check
+  [ -d "$OS_CHECK_DIR" ] && rm -rf "$OS_CHECK_DIR"
+  mkdir -p "$OS_CHECK_DIR" || exit 1
+
+  targets=( $(cat "$SSH_CHECK_DIR/ssh_reachable_hosts") )
+  echo
+  [ ! "${targets}" ] && echo "No target found..." && exit 1
+
+  sudo ssh 2>/dev/null
+  c=${#targets[*]}
+  i=0
+  for t in ${targets[*]}; do
+    sudo ssh 2>/dev/null
+    i=$(($i+1))
+    echo -en "  Generating os check report... ($i/$c)                 \r"
+    generate-os-report $t &
     [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
   done
   wait
