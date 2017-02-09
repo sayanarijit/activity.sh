@@ -93,7 +93,7 @@ generate-ssh-report ()
   ssh-keygen -R $1 &>/dev/null
 
   # Check if port 22 is open
-  if nc -z $1 22 2>/dev/null;then
+  if nc -z $1 22 &>/dev/null;then
     echo $1 >> "$SSH_CHECK_DIR/port_22_open"
   else
     echo $1 >> "$SSH_CHECK_DIR/port_22_closed"
@@ -310,7 +310,7 @@ generate-mount-report ()
 
 generate-port-scan-report ()
 {
-  if nc -z $1 $2 2>/dev/null; then
+  if nc -z $1 $2 &>/dev/null; then
     echo $1 >> "$PORT_SCAN_DIR/port_"$2"_open"
   else
     echo $1 >> "$PORT_SCAN_DIR/port_"$2"_closed"
