@@ -115,7 +115,7 @@ generate-ssh-report ()
     fi
   else
     # Try 2 : Set passwordless key and try login with root
-    if [ "$SET_SSH_KEY_SCRIPT" ];then
+    if [ -f "$SET_SSH_KEY_SCRIPT" ];then
       temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
 
       start=$(date +%s)
