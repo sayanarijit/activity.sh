@@ -14,6 +14,7 @@ MENU[g]="health-check"
 MENU[h]="mount-check"
 MENU[i]="port-scan"
 MENU[j]="os-check"
+MENU[w]="publish-unpublish"
 MENU[x]="remove-this-activity"
 MENU[y]="rename-this-activity"
 MENU[z]="exit"
@@ -70,7 +71,7 @@ while :; do
 done
 
 # Other variables
-MAX_BACKGROUND_PROCESS=100;                                                     # Maximum no. of background process to run simultaneously
+MAX_BACKGROUND_PROCESS=5000;                                                     # Maximum no. of background process to run simultaneously
 HR=$(for ((i=0;i<$(tput cols);i++));do echo -en "─";done;echo)
 
 # Custom functions (can be edited)----------------------------------------------
@@ -200,7 +201,7 @@ generate-login-report ()
     fi
     [ ! "$user" ] && echo $1 >> "$LOGIN_CHECK_DIR/no_user_found" && return 0
 
-    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "id")
+    id=$(sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "id $user" 2>/dev/null) 2>/dev/null
 
     home=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o \
      StrictHostKeyChecking=no $1 "su $user -c 'cd && pwd'" 2>/dev/null) 2>/dev/null
@@ -321,20 +322,24 @@ generate-port-scan-report ()
 generate-os-report ()
 {
   hosts=()
-  file="$SSH_CHECK_DIR/ssh_reachable_hosts"
+  file="$SSH_CHECK_DIR/ssh_with_root_login"
   [ -f "$file" ] && hosts=( $(cat "$file") )
   if in-array $1 ${hosts[*]}; then
     ssh_string="sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   else
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
-  kernel=$($ssh_string "uname -s"|tr " " "_" 2>/dev/null)
+  kernel=$(timeout -s9 $SSH_TIMEOUT $ssh_string "uname -s"|tr " " "_" 2>/dev/null) 2>/dev/null
   if [ "$kernel" == "Linux" ];then
     echo $1 >> "$OS_CHECK_DIR/$kernel"
-    dist=$($ssh_string "lsb_release -sir"|tr " " "_"|tr "\n" "_" 2>/dev/null)
-    echo $1 >> "$OS_CHECK_DIR/$dist"
+    os=$(timeout -s9 $SSH_TIMEOUT $ssh_string "[ -f /usr/bin/lsb_release ] && lsb_release -sir"|cut -d. -f1|tr " " "_"|tr "\n" "_" 2>/dev/null) 2>/dev/null
+    if [ "$os" ];then
+      echo $1 >> "$OS_CHECK_DIR/$os"
+    else
+      echo $1 >> "$OS_CHECK_DIR/unknown_os"
+    fi
   elif [ ! "$kernel" ];then
-    echo $1 >> "$OS_CHECK_DIR/unknown"
+    echo $1 >> "$OS_CHECK_DIR/unknown_kernel"
   else
     echo $1 >> "$OS_CHECK_DIR/$kernel"
   fi
