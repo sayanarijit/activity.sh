@@ -71,7 +71,7 @@ while :; do
 done
 
 # Other variables
-MAX_BACKGROUND_PROCESS=5000;                                                     # Maximum no. of background process to run simultaneously
+MAX_BACKGROUND_PROCESS=5000                                                     # Maximum no. of background process to run simultaneously
 HR=$(for ((i=0;i<$(tput cols);i++));do echo -en "─";done;echo)
 
 # Custom functions (can be edited)----------------------------------------------
