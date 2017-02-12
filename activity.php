@@ -77,13 +77,21 @@ echo "</div>";
 # Middle panel
 echo "<div style='width:18%; float:left'>";
 if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']]))){
-  echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." : ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
-  echo "<a href='?dir=".$_GET['dir']."&file=*'>Show all</a><hr/>";
   $files = glob($dirID[$_GET['dir']]."/*");
-  foreach ($files as $f){
-    $fileID[$i] = $f;
-    echo "<a href='?dir=".$_GET['dir']."&file=".$i."'>".basename($f)."</a>";
-    $i++;
+  if(count($files) > 0){
+    echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." : ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
+    echo "<a href='?dir=".$_GET['dir']."&file=*'>Show all</a>";
+    echo "<a href='#' id='copy' onclick='document.getElementById(\"clip\").select();document.execCommand(\"copy\");document.getElementById(\"copy\").innerHTML=\"Copied to clipboard\";'>Copy all</a><hr/>";
+    $clipTEXT = null;
+    foreach ($files as $f){
+      $fileID[$i] = $f;
+      echo "<a href='?dir=".$_GET['dir']."&file=".$i."'>".basename($f)."</a>";
+      $clipTEXT = $clipTEXT."\n".basename($f);
+      $i++;
+    }
+    echo "<textarea id='clip' style='opacity: 0' readonly>".$clipTEXT."</textarea>";
+  }else{
+    echo "<h3>Nothing to show</h3>";
   }
 }
 echo "</div>";
@@ -94,7 +102,7 @@ if (isset($_GET['file'])){
     $files = glob($dirID[$_GET['dir']]."/*");
     foreach ($files as $f){
       echo "<h3>".str_replace('_',' ',basename(dirname($f."/.")))."</h3>";
-      echo "<div style='background-color: #E1E1E1'>";
+      echo "<div style='background: rgba(200,200,200,.3)'>";
       $lines = read_lines($f);
       foreach ($lines as $l){
         echo $l."<br/>";
@@ -103,7 +111,7 @@ if (isset($_GET['file'])){
     }
   }elseif(is_file($fileID[$_GET['file']])){
     echo "<h3>".str_replace('_',' ',basename($fileID[$_GET['file']]))."</h3>";
-    echo "<div style='background-color: #E1E1E1'>";
+    echo "<div style='background: rgba(200,200,200,.3)'>";
     $lines = read_lines($fileID[$_GET['file']]);
     foreach ($lines as $l){
       echo $l."<br/>";
