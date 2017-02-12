@@ -35,7 +35,18 @@ function read_file($path)
   </style>
 </head>
 <body>
-
+<script>
+  function copy(buttonId, contentId){
+    document.getElementById(contentId).select();
+    document.execCommand("copy");
+    if ( document.selection ) {
+        document.selection.empty();
+    } else if ( window.getSelection ) {
+        window.getSelection().removeAllRanges();
+    }
+    document.getElementById(buttonId).innerHTML="Copied to clipboard";
+  }
+</script>
 <?php
 $i=0;
 $j=0;
@@ -81,7 +92,7 @@ if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']])))
   if(count($files) > 0){
     echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." : ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
     echo "<a href='?dir=".$_GET['dir']."&file=*'>Show all</a>";
-    echo "<a href='#' id='copy' onclick='document.getElementById(\"clip\").select();document.execCommand(\"copy\");document.getElementById(\"copy\").innerHTML=\"Copied to clipboard\";'>Copy all</a><hr/>";
+    echo "<a href='#' id='copy' onclick='copy(\"copy\",\"clip\")'>Copy all</a><hr/>";
     $clipTEXT = null;
     foreach ($files as $f){
       $fileID[$i] = $f;
@@ -101,22 +112,25 @@ if (isset($_GET['file'])){
   if (isset($_GET['dir'])&&(is_dir($dirID[$_GET['dir']]))&&($_GET['file'] == "*")){
     $files = glob($dirID[$_GET['dir']]."/*");
     foreach ($files as $f){
-      echo "<h3>".str_replace('_',' ',basename(dirname($f."/.")))."</h3>";
-      echo "<div style='background: rgba(200,200,200,.3)'>";
       $lines = read_lines($f);
+      $basename = str_replace('_',' ',basename(dirname($f."/.")));
+      echo "<h3>".str_replace('_',' ',basename(dirname($f."/.")))."</h3>";
+      echo "<a href='#/' id='copyText_".$basename."' onclick='copy(\"copyText_".$basename."\",\"clipText_".$basename."\")'>Copy</a>";
+      echo "<textarea id='clipText_".$basename."' rows='".(count($lines)+1)."' style='max-width:100%;width:100%;border:none;background: rgba(200,200,200,.3)' readonly>";
       foreach ($lines as $l){
-        echo $l."<br/>";
+        echo $l;
       }
-      echo "</div>";
+      echo "</textarea>";
     }
   }elseif(is_file($fileID[$_GET['file']])){
-    echo "<h3>".str_replace('_',' ',basename($fileID[$_GET['file']]))."</h3>";
-    echo "<div style='background: rgba(200,200,200,.3)'>";
     $lines = read_lines($fileID[$_GET['file']]);
+    echo "<h3>".str_replace('_',' ',basename($fileID[$_GET['file']]))."</h3>";
+    echo "<a href='#/' id='copyText' onclick='copy(\"copyText\",\"clipText\")'>Copy</a>";
+    echo "<textarea id='clipText' rows='".(count($lines)+1)."' style='max-width:100%;width:100%;border:none;background: rgba(200,200,200,.3)' readonly>";
     foreach ($lines as $l){
-      echo $l."<br/>";
+      echo $l;
     }
-    echo "</div>";
+    echo "</textarea>";
   }
 }
 echo "</div>";
