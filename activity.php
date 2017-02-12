@@ -91,7 +91,7 @@ echo "<div style='width:18%; float:left'>";
 if (isset($_GET['dir'])&&(!empty($_GET['dir']))&&(is_dir($dirID[$_GET['dir']]))){
   $files = glob($dirID[$_GET['dir']]."/*");
   if(count($files) > 0){
-    echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." : ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
+    echo "<h3>".read_file($dirID[$_GET['dir']]."/../name")." > ".str_replace('_',' ',basename(dirname($dirID[$_GET['dir']]."/.")))."</h3>";
     echo "<a href='?dir=".$_GET['dir']."&file=*'>Show all</a>";
     echo "<a href='#' id='copy' onclick='copy(\"copy\",\"clip\")'>Copy all</a><hr/>";
     $clipTEXT = null;
