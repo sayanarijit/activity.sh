@@ -32,6 +32,7 @@ function read_file($path)
     a    {text-decoration: none;padding: 5px; display: block; width: 100%}
     div {padding:1%}
     a:hover    {background-color: #E1E1E1}
+    textarea {max-width:100%;width:100%;border:none;background: rgba(200,200,200,.3)}
   </style>
 </head>
 <body>
@@ -116,7 +117,7 @@ if (isset($_GET['file'])){
       $basename = str_replace('_',' ',basename(dirname($f."/.")));
       echo "<h3>".str_replace('_',' ',basename(dirname($f."/.")))."</h3>";
       echo "<a href='#/' id='copyText_".$basename."' onclick='copy(\"copyText_".$basename."\",\"clipText_".$basename."\")'>Copy</a>";
-      echo "<textarea id='clipText_".$basename."' rows='".(count($lines)+1)."' style='max-width:100%;width:100%;border:none;background: rgba(200,200,200,.3)' readonly>";
+      echo "<textarea id='clipText_".$basename."' rows='10' readonly>";
       foreach ($lines as $l){
         echo $l;
       }
@@ -126,7 +127,7 @@ if (isset($_GET['file'])){
     $lines = read_lines($fileID[$_GET['file']]);
     echo "<h3>".str_replace('_',' ',basename($fileID[$_GET['file']]))."</h3>";
     echo "<a href='#/' id='copyText' onclick='copy(\"copyText\",\"clipText\")'>Copy</a>";
-    echo "<textarea id='clipText' rows='".(count($lines)+1)."' style='max-width:100%;width:100%;border:none;background: rgba(200,200,200,.3)' readonly>";
+    echo "<textarea id='clipText' rows='".(count($lines)+1)."' readonly>";
     foreach ($lines as $l){
       echo $l;
     }
