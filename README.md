@@ -1,5 +1,8 @@
 # activity.sh
 
+![activity.sh command-line view view](https://github.com/sayanarijit/activity.sh/blob/master/activity.sh-commandline.png?raw=true)
+![activity.sh browser view](https://github.com/sayanarijit/activity.sh/blob/master/activity.sh-browser.png?raw=true)
+
 ## What is it for
 This script is for Linux/UNIX system admins to quickly and efficiently scan large list of hosts in the environment, run different pre-built checks on them, execute command through ssh and generate report of the findings.
 
