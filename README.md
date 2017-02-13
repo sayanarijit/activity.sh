@@ -13,7 +13,7 @@ This script is for Linux/UNIX system admins to quickly and efficiently scan larg
 * Best feature is, it can create a fully featured website for the reports it has generated to make it easier to browse.
 
 ## How does it work
-Find the demo video here: [activity.sh demo](https://youtu.be/p5Wh0JZ-W1U)
+Find the demo video here: [activity.sh demo](https://youtu.be/dvHasF3Ap0c)
 
 ## Requirements, pre-checks and pre-configuration
 Most of the functions in this script runs ssh. So the basic requirements are:
