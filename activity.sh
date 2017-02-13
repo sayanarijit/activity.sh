@@ -98,6 +98,7 @@ generate-ssh-report ()
     echo $1 >> "$SSH_CHECK_DIR/port_22_open"
   else
     echo $1 >> "$SSH_CHECK_DIR/port_22_closed"
+    echo $1 >> "$SSH_CHECK_DIR/ssh_unreachable_hosts"
     return 1
   fi
 
