@@ -242,16 +242,12 @@ generate-health-report ()
   fi
   cpu_usage=$($ssh_string "uptime"|awk '{print $NF*100}' 2>/dev/null)
   [ "$cpu_usage" ]||cpu_usage=0
-  # ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)       # free command is limited to linux
-  # [ "$ram_usage" ]||ram_usage=0
   active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
   disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $NF}' 2>/dev/null)
   uptime=$($ssh_string "uptime"|grep -i days|cut -dd -f1|awk '{print $NF}' 2>/dev/null)
   [ "$uptime" ]||uptime=0
-  ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
-  [ "$ram_usage" ]||ram_usage=0
-  active_sessions=$($ssh_string "who"|wc -l 2>/dev/null)
-  disk_full=$($ssh_string "df -l"|grep "^/dev/"|grep -e '9[5-9]%\|100%'|awk '{print $NF}' 2>/dev/null)
+  # ram_usage=$($ssh_string "free"|grep -i mem|awk '{print $3*100/$2}'|cut -d. -f1 2>/dev/null)
+  # [ "$ram_usage" ]||ram_usage=0
 
   # if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$ram_usage" -ge 70 ]||[ "$uptime" -ge 200 ]||[ "$active_sessions" -ge 20 ]; then
   if [ "$disk_full" ]||[ "$cpu_usage" -ge 70 ]||[ "$uptime" -ge 200 ]||[ "$active_sessions" -ge 20 ]; then
