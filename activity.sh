@@ -115,44 +115,48 @@ generate-ssh-report ()
     else
       echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
     fi
-  else
-    # Try 2 : Set passwordless key and try login with root
-    if [ -f "$SET_SSH_KEY_SCRIPT" ];then
-      temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
+    return 0
+  fi
 
-      start=$(date +%s)
-      hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
-      end=$(date +%s)
+  # Try 2 : Set passwordless key and try login with root
+  if [ -f "$SET_SSH_KEY_SCRIPT" ];then
+    temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
 
-      if [ "$hostname" ];then
-        echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
-        echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
-        if (( $end-$start <= 5 )); then
-          echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
-        else
-          echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
-        fi
-      fi
-    else
-      # Try 3 : Login with unix account
-      start=$(date +%s)
-      hostname=$(timeout -s9 $SSH_TIMEOUT sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
-      end=$(date +%s)
+    start=$(date +%s)
+    hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+    end=$(date +%s)
 
-      if [ "$hostname" ];then
-        echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
-        echo $1 >> "$SSH_CHECK_DIR/ssh_root_login_not_possible"
-        if (( $end-$start <= 5 )); then
-          echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
-        else
-          echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
-        fi
+    if [ "$hostname" ];then
+      echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
+      echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
+      if (( $end-$start <= 5 )); then
+        echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
       else
-        echo $1 >> "$SSH_CHECK_DIR/ssh_unreachable_hosts"
+        echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
       fi
+      return 0
     fi
   fi
-  return 0
+
+  # Try 3 : Login with unix account
+  start=$(date +%s)
+  hostname=$(timeout -s9 $SSH_TIMEOUT sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+  end=$(date +%s)
+
+  if [ "$hostname" ];then
+    echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
+    echo $1 >> "$SSH_CHECK_DIR/ssh_root_login_not_possible"
+    if (( $end-$start <= 5 )); then
+      echo $1 >> "$SSH_CHECK_DIR/ssh_time_within_5_sec"
+    else
+      echo $1 >> "$SSH_CHECK_DIR/ssh_time_above_5_sec"
+    fi
+    return 0
+  fi
+
+  # If everything fails
+  echo $1 >> "$SSH_CHECK_DIR/ssh_unreachable_hosts"
+  return 1
 }
 
 generate-execute-command-report ()
