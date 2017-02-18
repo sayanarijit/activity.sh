@@ -356,7 +356,7 @@ ping-check ()
   echo "Paste targets below and press 'CTRL+D'"
   echo "──────────────────────────────────────"
   readarray targets
-  echo ${targets[*]}|tr " " "\n" > $PING_CHECK_DIR/all_hosts
+  echo ${targets[*]}|tr " " "\n"|sort|uniq > $PING_CHECK_DIR/all_hosts
   echo
   [ ! "${targets}" ] && echo "No target found..." && exit 1
 
