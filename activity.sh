@@ -366,7 +366,7 @@ ping-check ()
     i=$(($i+1))
     echo -en "  Generating ping check report... ($i/$c)                 \r"
     generate-ping-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge 10 ] && wait # 10 parallel process is enough for ping check [to avoide write error]
   done
   wait
   echo "                                                                   "
@@ -390,7 +390,7 @@ ssh-check ()
     i=$(($i+1))
     echo -en "  Generating ssh check report... ($i/$c)                 \r"
     generate-ssh-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -420,7 +420,7 @@ execute-command ()
     i=$(($i+1))
     echo -en "  Generating command output report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -446,7 +446,7 @@ console-check ()
     i=$(($i+1))
     echo -en "  Generating console check report... ($i/$c)                 \r"
     generate-console-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -488,7 +488,7 @@ config-check ()
     i=$(($i+1))
     echo -en "  Generating configuration check report... ($i/$c)                 \r"
     generate-execute-command-report $t "$command_to_run" "$dir" &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -517,7 +517,7 @@ login-check ()
     i=$(($i+1))
     echo -en "  Generating login check report... ($i/$c)                 \r"
     generate-login-report $t $user &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -541,7 +541,7 @@ health-check ()
     i=$(($i+1))
     echo -en "  Generating health check report... ($i/$c)                 \r"
     generate-health-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -571,7 +571,7 @@ mount-check ()
     i=$(($i+1))
     echo -en "  Generating mount check report... ($i/$c)                 \r"
     generate-mount-report $t ${mounts[*]} &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -595,7 +595,7 @@ os-check ()
     i=$(($i+1))
     echo -en "  Generating os check report... ($i/$c)                 \r"
     generate-os-report $t &
-    [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+    [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
   done
   wait
   echo "                                                                   "
@@ -624,7 +624,7 @@ port-scan ()
     echo -en "  Generating port scan report... ($i/$c)                 \r"
     for p in ${ports[*]};do
       generate-port-scan-report $t $p &
-      [ $(($i%$MAX_BACKGROUND_PROCESS)) == 0 ] && wait
+      [ $(jobs|wc -l) -ge $MAX_BACKGROUND_PROCESS ] && wait
     done
   done
   wait
