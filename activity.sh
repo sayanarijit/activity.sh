@@ -104,10 +104,10 @@ generate-ssh-report ()
 
   # Try 1 : Try login with root
   start=$(date +%s)
-  hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+  connection=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "echo connected" 2>/dev/null) &>/dev/null
   end=$(date +%s)
 
-  if [ "$hostname" ];then
+  if [ "$connection" == "connected" ];then
     echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
     echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
     if (( $end-$start <= 5 )); then
@@ -123,10 +123,10 @@ generate-ssh-report ()
     temp=$(timeout -s9 $SET_SSH_KEY_TIMEOUT sudo $SET_SSH_KEY_SCRIPT $1 &>/dev/null) &>/dev/null
 
     start=$(date +%s)
-    hostname=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+    connection=$(timeout -s9 $SSH_TIMEOUT sudo ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "echo connected" 2>/dev/null) &>/dev/null
     end=$(date +%s)
 
-    if [ "$hostname" ];then
+    if [ "$connection" == "connected" ];then
       echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
       echo $1 >> "$SSH_CHECK_DIR/ssh_with_root_login"
       if (( $end-$start <= 5 )); then
@@ -140,10 +140,10 @@ generate-ssh-report ()
 
   # Try 3 : Login with unix account
   start=$(date +%s)
-  hostname=$(timeout -s9 $SSH_TIMEOUT sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "hostname" 2>/dev/null) &>/dev/null
+  connection=$(timeout -s9 $SSH_TIMEOUT sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1 "echo connected" 2>/dev/null) &>/dev/null
   end=$(date +%s)
 
-  if [ "$hostname" ];then
+  if [ "$connection" == "connected" ];then
     echo $1 >> "$SSH_CHECK_DIR/ssh_reachable_hosts"
     echo $1 >> "$SSH_CHECK_DIR/ssh_root_login_not_possible"
     if (( $end-$start <= 5 )); then
