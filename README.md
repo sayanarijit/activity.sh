@@ -28,7 +28,7 @@ Most of the functions in this script runs ssh. So the basic requirements are:
 * If the activity.php file needs to be moved to any other directory, make sure it is mentioned in "WEBPAGE_FILE" variable.
 
 ## How to setup and run
-* [Download zip file] (https://github.com/sayanarijit/activity.sh/archive/master.zip)
+* [Download zip file](https://github.com/sayanarijit/activity.sh/archive/master.zip)
 ```
 wget https://github.com/sayanarijit/activity.sh/archive/master.zip
 ```
