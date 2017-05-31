@@ -64,11 +64,16 @@ WEBSERVER="localhost"                                                           
 REFERENCE_SERVER="localhost"                                                    # Will be used to varify ssh passwords
 
 # unix PASSWORD
-while :; do
-  read -sp "Enter unix password : " PASSWORD && echo && \
-   sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $REFERENCE_SERVER id &>/dev/null && \
-    break
-done
+if [ "$REFERENCE_SERVER" ]; then
+  while :; do
+    read -sp "Enter unix password : " PASSWORD && echo && \
+     sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $REFERENCE_SERVER id &>/dev/null && \
+      break
+  done
+else
+  PASSWORD="dummy"
+fi
+
 
 # Other variables
 MAX_BACKGROUND_PROCESS=5000                                                     # Maximum no. of background process to run simultaneously
