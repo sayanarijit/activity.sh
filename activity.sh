@@ -330,19 +330,28 @@ generate-os-report ()
   else
     ssh_string="sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $1"
   fi
-  kernel=$(timeout -s9 $SSH_TIMEOUT $ssh_string "uname -s"|tr " " "_" 2>/dev/null) 2>/dev/null
+  unm=$(timeout -s9 $SSH_TIMEOUT $ssh_string "uname -smr;python -c 'import platform; print(\"_\".join(platform.dist()).replace(\" \",\"_\").replace(\"/\",\"_\"));'" 2>/dev/null) 2>/dev/null
+  kernel=$(echo $unm|awk '{print $1}')
+  release=$(echo $unm|awk '{print $2}')
+  arch=$(echo $unm|awk '{print $3}')
+  [ "$arch" ] && echo $1 >> "$OS_CHECK_DIR/$arch"
   if [ "$kernel" == "Linux" ];then
     echo $1 >> "$OS_CHECK_DIR/$kernel"
-    os=$(timeout -s9 $SSH_TIMEOUT $ssh_string "[ -f /usr/bin/lsb_release ] && lsb_release -sir"|cut -d. -f1|tr " " "_"|tr "\n" "_" 2>/dev/null) 2>/dev/null
-    if [ "$os" ];then
-      echo $1 >> "$OS_CHECK_DIR/$os"
+    linux_distro=$(echo -e "$unm"|head -2|tail -1) 2>/dev/null
+    if [ "$linux_distro" ]&&[ "$linux_distro" != "$unm" ];then
+      echo $1 >> "$OS_CHECK_DIR/$linux_distro"
     else
-      echo $1 >> "$OS_CHECK_DIR/unknown_os"
+      echo $1 >> "$OS_CHECK_DIR/unknown_linux"
+    fi
+  elif [ "$kernel" ];then
+    echo $1 >> "$OS_CHECK_DIR/$kernel"
+    if [ "$release" ];then
+      echo $1 >> "$OS_CHECK_DIR/$kernel"_"$release"
+    else
+      echo $1 >> "$OS_CHECK_DIR/unknown_unix"
     fi
   elif [ ! "$kernel" ];then
     echo $1 >> "$OS_CHECK_DIR/unknown_kernel"
-  else
-    echo $1 >> "$OS_CHECK_DIR/$kernel"
   fi
   return 0
 }
