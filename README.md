@@ -1,5 +1,7 @@
 # activity.sh
 
+***Note: A better alternative of this script, written in python is available [here](https://github.com/sayanarijit/activity)***
+
 ![activity.sh command-line view view](https://github.com/sayanarijit/activity.sh/blob/master/activity.sh-commandline.png?raw=true)
 ![activity.sh browser view](https://github.com/sayanarijit/activity.sh/blob/master/activity.sh-browser.png?raw=true)
 
