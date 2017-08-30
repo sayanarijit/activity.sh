@@ -2,7 +2,7 @@ title: activity.sh
 description: This script is for Linux/UNIX system admins to quickly and efficiently scan large list of hosts in the environment, run different pre-built checks on them, execute command through ssh and generate report of the findings.
 google_analytics: 
 show_downloads: true
-theme: jekyll-theme-cayman
+theme: jekyll-theme-hacker
 
 gems:
   - jekyll-mentions
