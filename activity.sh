@@ -65,10 +65,8 @@ REFERENCE_SERVER="localhost"                                                    
 
 # unix PASSWORD
 if [ "$REFERENCE_SERVER" ]; then
-  while :; do
-    read -sp "Enter unix password : " PASSWORD && echo && \
-     sshpass -p "$PASSWORD" ssh -q -o ConnectTimeout=3 -o StrictHostKeyChecking=no $REFERENCE_SERVER id &>/dev/null && \
-      break
+  while [ ! "$PASSWORD" ]; do
+    read -sp "Enter unix password : " PASSWORD && echo
   done
 else
   PASSWORD="dummy"
