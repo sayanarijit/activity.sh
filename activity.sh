@@ -83,7 +83,7 @@ HR=$(for ((i=0;i<$(tput cols);i++));do echo -en "─";done;echo)
 
 generate-ping-report ()
 {
-  if ping -c1 -w1 $1 &>/dev/null; then
+  if ping -c1 -w5 $1 &>/dev/null; then
     echo $1 >> "$PING_CHECK_DIR/available_hosts"
   else
     echo $1 >> "$PING_CHECK_DIR/unavailable_hosts"
