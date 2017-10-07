@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Author:         Arijit Basu
+# Email:          sayanarijit@gmail.com
+# Documentation:  https://sayanarijit.github.io/activity.sh
+
 # set -x   # For debugging
 
 # Menu with function declarations ----------------------------------------------
