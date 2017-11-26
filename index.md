@@ -38,7 +38,7 @@ wget https://github.com/sayanarijit/activity.sh/archive/master.zip
 ```
 unzip master.zip
 ```
-* Modify script (change SET_SSH_KEY_SCRIPT, SET_SSH_KEY_TIMEOUT, REPORT_DIR, REFERENCE_SERVER, WEBSERVER, WEBSITE_PATH etc. variables as per your [requirement] (#requirements-pre-checks-and-pre-configuration))
+* Modify script (change SET_SSH_KEY_SCRIPT, SET_SSH_KEY_TIMEOUT, REPORT_DIR, REFERENCE_SERVER, WEBSERVER, WEBSITE_PATH etc. variables as per your [requirement](#requirements-pre-checks-and-pre-configuration))
 ```
 cd activity.sh-master
 vim activity.sh
